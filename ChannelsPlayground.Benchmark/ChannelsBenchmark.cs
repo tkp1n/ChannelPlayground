@@ -60,7 +60,7 @@ namespace ChannelsPlayground.Benchmark
         }
 
         [Benchmark]
-        public async Task ChannelPerf()
+        public async Task<int> ChannelPerf()
         {
             var channel = CreateChannel();
             var itemsToProduce = Capacity / ProducerCount;
@@ -68,7 +68,12 @@ namespace ChannelsPlayground.Benchmark
             var producerFactory = new ProducerFactory(channel, ProducerCount, itemsToProduce, PublisherScheduler);
             var subscriberFactory = new SubscriberFactory(channel, SubscriberCount, SubscriberScheduler);
 
-            await Task.WhenAll(producerFactory.StartProducersAsync(), subscriberFactory.StartSubscribersAsync());
+            var prodThread = producerFactory.StartProducersAsync();
+            var subsThread = subscriberFactory.StartSubscribersAsync();
+            
+            await Task.WhenAll(prodThread, subsThread);
+
+            return subsThread.Result;
         }
 
         private Channel<int> CreateChannel()
@@ -79,7 +84,7 @@ namespace ChannelsPlayground.Benchmark
                     return Channel.CreateBounded<int>(new BoundedChannelOptions(Capacity)
                     {
                         AllowSynchronousContinuations = AllowSyncContinuations,
-                        FullMode = BoundedChannelFullMode.DropWrite,
+                        FullMode = BoundedChannelFullMode.Wait,
                         SingleReader = SubscriberCardinality == Cardinality.Single,
                         SingleWriter = PublisherCardinality == Cardinality.Single
                     });

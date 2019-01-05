@@ -30,7 +30,7 @@ namespace ChannelsPlayground.Benchmark
                 producers[i] = Task.Factory.StartNew(
                     async () => await producerTask,
                     CancellationToken.None,
-                    TaskCreationOptions.None,
+                    TaskCreationOptions.DenyChildAttach,
                     _scheduler
                 ).Unwrap();
             }

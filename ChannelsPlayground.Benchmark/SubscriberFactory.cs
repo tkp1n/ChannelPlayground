@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.CodeAnalysis.CSharp;
 
 namespace ChannelsPlayground.Benchmark
 {
@@ -17,21 +18,29 @@ namespace ChannelsPlayground.Benchmark
             _scheduler = scheduler;
         }
 
-        public async Task StartSubscribersAsync(CancellationToken cancellationToken = default)
+        public async Task<int> StartSubscribersAsync(CancellationToken cancellationToken = default)
         {
-            var subscribers = new Task[_subscriberCount];
+            var subscribers = new Task<int>[_subscriberCount];
             for (var i = 0; i < subscribers.Length; i++)
             {
                 var subscriberTask = new Subscriber(_reader).SubscribeAsync(cancellationToken);
                 subscribers[i] = Task.Factory.StartNew(
                     async () => await subscriberTask,
                     CancellationToken.None,
-                    TaskCreationOptions.None,
+                    TaskCreationOptions.DenyChildAttach,
                     _scheduler
                 ).Unwrap();
             }
 
             await Task.WhenAll(subscribers);
+
+            var sum = 0;
+            for (var i = 0; i < subscribers.Length; i++)
+            {
+                sum += subscribers[i].Result;
+            }
+
+            return sum;
         }
     }
 }

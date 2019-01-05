@@ -13,14 +13,19 @@ namespace ChannelsPlayground.Benchmark
             _reader = reader;
         }
 
-        public async Task SubscribeAsync(CancellationToken cancellationToken = default)
+        public async Task<int> SubscribeAsync(CancellationToken cancellationToken = default)
         {
             var reader = _reader;
-
+            var i = 0;
             while (await reader.WaitToReadAsync(cancellationToken))
             {
-                while (reader.TryRead(out _)) { }
+                while (reader.TryRead(out _))
+                {
+                    i++;
+                }
             }
+
+            return i;
         }
     }
 }
