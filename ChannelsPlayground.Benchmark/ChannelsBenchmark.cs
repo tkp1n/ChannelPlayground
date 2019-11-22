@@ -49,7 +49,7 @@ namespace ChannelsPlayground.Benchmark
         public void Setup()
         {
             SubscriberScheduler = new FixedThreadPoolScheduler(SubscriberCount);
-            PublisherScheduler = new FixedThreadPoolScheduler(SubscriberCount);
+            PublisherScheduler = new FixedThreadPoolScheduler(ProducerCount);
         }
 
         [GlobalCleanup]
