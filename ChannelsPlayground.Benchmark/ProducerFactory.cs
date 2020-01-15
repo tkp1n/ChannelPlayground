@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.Extensions.ObjectPool;
 
 namespace ChannelsPlayground.Benchmark
 {
@@ -9,13 +10,16 @@ namespace ChannelsPlayground.Benchmark
         private readonly int _itemsToProduce;
         private readonly int _producerCount;
         private readonly TaskScheduler _scheduler;
-        private readonly ChannelWriter<int> _writer;
+        private readonly ChannelWriter<DataTransferObject> _writer;
+        private readonly ObjectPool<DataTransferObject> _pool;
 
-        public ProducerFactory(ChannelWriter<int> writer,
+        public ProducerFactory(ChannelWriter<DataTransferObject> writer,
+            ObjectPool<DataTransferObject> pool,
             int producerCount,
             int itemsToProduce, TaskScheduler scheduler)
         {
             _writer = writer;
+            _pool = pool;
             _producerCount = producerCount;
             _itemsToProduce = itemsToProduce;
             _scheduler = scheduler;
@@ -26,7 +30,7 @@ namespace ChannelsPlayground.Benchmark
             var producers = new Task[_producerCount];
             for (var i = 0; i < producers.Length; i++)
             {
-                var producerTask = new Producer(_writer, _itemsToProduce).ProduceAsync(cancellationToken);
+                var producerTask = new Producer(_writer, _pool, _itemsToProduce).ProduceAsync(cancellationToken);
                 producers[i] = Task.Factory.StartNew(
                     async () => await producerTask,
                     CancellationToken.None,

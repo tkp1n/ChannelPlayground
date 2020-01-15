@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Configs;
+using Microsoft.Extensions.ObjectPool;
 
 namespace ChannelsPlayground.Benchmark
 {
@@ -65,8 +66,10 @@ namespace ChannelsPlayground.Benchmark
             var channel = CreateChannel();
             var itemsToProduce = Capacity / ProducerCount;
 
-            var producerFactory = new ProducerFactory(channel, ProducerCount, itemsToProduce, PublisherScheduler);
-            var subscriberFactory = new SubscriberFactory(channel, SubscriberCount, SubscriberScheduler);
+            var pool = new DefaultObjectPool<DataTransferObject>(new DefaultPooledObjectPolicy<DataTransferObject>(), Math.Max(ProducerCount, SubscriberCount) * 2);
+
+            var producerFactory = new ProducerFactory(channel, pool, ProducerCount, itemsToProduce, PublisherScheduler);
+            var subscriberFactory = new SubscriberFactory(channel, pool, SubscriberCount, SubscriberScheduler);
 
             var prodThread = producerFactory.StartProducersAsync();
             var subsThread = subscriberFactory.StartSubscribersAsync();
@@ -76,28 +79,25 @@ namespace ChannelsPlayground.Benchmark
             return subsThread.Result;
         }
 
-        private Channel<int> CreateChannel()
+        private Channel<DataTransferObject> CreateChannel()
         {
-            switch (Type)
+            return Type switch
             {
-                case ChannelType.BoundedWait:
-                    return Channel.CreateBounded<int>(new BoundedChannelOptions(Capacity)
-                    {
-                        AllowSynchronousContinuations = AllowSyncContinuations,
-                        FullMode = BoundedChannelFullMode.Wait,
-                        SingleReader = SubscriberCardinality == Cardinality.Single,
-                        SingleWriter = PublisherCardinality == Cardinality.Single
-                    });
-                case ChannelType.Unbounded:
-                    return Channel.CreateUnbounded<int>(new UnboundedChannelOptions
-                    {
-                        AllowSynchronousContinuations = AllowSyncContinuations,
-                        SingleReader = SubscriberCardinality == Cardinality.Single,
-                        SingleWriter = PublisherCardinality == Cardinality.Single
-                    });
-                default:
-                    throw new InvalidOperationException();
-            }
+                ChannelType.BoundedWait => Channel.CreateBounded<DataTransferObject>(new BoundedChannelOptions(Capacity)
+                {
+                    AllowSynchronousContinuations = AllowSyncContinuations,
+                    FullMode = BoundedChannelFullMode.Wait,
+                    SingleReader = SubscriberCardinality == Cardinality.Single,
+                    SingleWriter = PublisherCardinality == Cardinality.Single
+                }),
+                ChannelType.Unbounded => Channel.CreateUnbounded<DataTransferObject>(new UnboundedChannelOptions
+                {
+                    AllowSynchronousContinuations = AllowSyncContinuations,
+                    SingleReader = SubscriberCardinality == Cardinality.Single,
+                    SingleWriter = PublisherCardinality == Cardinality.Single
+                }),
+                _ => throw new InvalidOperationException()
+            };
         }
 
         private class Config : ManualConfig
